@@ -34,6 +34,20 @@ image_weights = hf_hub_download(repo_id="LaabhGupta/image-antispoofing", filenam
 image_model = load_image_model("deeper", image_weights, device=device)
 print("✔ Image model loaded")
 
+import torch
+import transformers
+import packaging
+
+print("torch version:", torch.__version__)
+print("transformers version:", transformers.__version__)
+print("packaging version:", packaging.__version__)
+
+from transformers.utils import is_torch_available
+print("is_torch_available():", is_torch_available())
+
+print("🔍 Loading Text model...")
+text_model = AutoModelForSequenceClassification.from_pretrained("LaabhGupta/Text-Anti-Spoofing")
+
 print("🔍 Loading Text model...")
 text_model = AutoModelForSequenceClassification.from_pretrained("LaabhGupta/Text-Anti-Spoofing")
 tokenizer = AutoTokenizer.from_pretrained("LaabhGupta/Text-Anti-Spoofing")
@@ -103,14 +117,17 @@ async def predict_voice_endpoint(file: UploadFile = File(...)):
         return {"error": f"Please upload one of: {', '.join(VOICE_EXTENSIONS)}"}
     try:
         file_bytes = await file.read()
-        # voice's predict() expects a file path OR raw bytes handled by its own preprocess_audio -
-        # check your voice/model.py's preprocess_audio signature; if it only accepts a path,
-        # write file_bytes to a temp file first (see note below)
-        import tempfile
-        with tempfile.NamedTemporaryFile(suffix=f".{ext}", delete=True) as tmp:
-            tmp.write(file_bytes)
-            tmp.flush()
+        import tempfile, os as os_module
+
+        tmp = tempfile.NamedTemporaryFile(suffix=f".{ext}", delete=False)
+        tmp.write(file_bytes)
+        tmp.close()  # release the lock before torchaudio tries to open it
+
+        try:
             label, confidence = predict_voice(tmp.name, voice_model, device=device)
+        finally:
+            os_module.remove(tmp.name)  # manual cleanup since delete=False skips auto-cleanup
+
         return {"filename": file.filename, "predicted_class": label, "confidence": confidence}
     except Exception as e:
         return {"error": f"Failed to process audio: {e}"}
