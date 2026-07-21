@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+python-multipart
+huggingface_hub
+pillow
+torch==2.2.0 --index-url https://download.pytorch.org/whl/cpu
+torchvision==0.17.0 --index-url https://download.pytorch.org/whl/cpu

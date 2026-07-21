@@ -2,9 +2,8 @@ import React, { useState, useRef } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { MessageList } from 'react-chat-elements';
 import 'react-chat-elements/dist/main.css';
+import { getBackendUrl } from './router';
 import './App.css';
-
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
 function App() {
   const [messages, setMessages] = useState([
@@ -23,13 +22,14 @@ function App() {
   };
 
   const handleFile = async (file) => {
-    // Show the user's upload as a chat bubble
     const isImage = file.type.startsWith('image/');
     addMessage({
       position: 'right',
       type: isImage ? 'photo' : 'file',
       text: file.name,
-      data: isImage ? { uri: URL.createObjectURL(file), status: { click: false } } : { uri: '#', status: { click: false } },
+      data: isImage
+        ? { uri: URL.createObjectURL(file), status: { click: false } }
+        : { uri: '#', status: { click: false } },
       title: file.name,
     });
 
@@ -38,7 +38,8 @@ function App() {
     formData.append('file', file);
 
     try {
-      const response = await fetch(`${BACKEND_URL}/predict/`, {
+      const backendUrl = getBackendUrl(file.name); // <- picks the right backend based on file type
+      const response = await fetch(`${backendUrl}/predict/`, {
         method: 'POST',
         body: formData,
       });
@@ -64,7 +65,7 @@ function App() {
       addMessage({
         position: 'left',
         type: 'text',
-        text: `❌ Error reaching the server: ${err.message}`,
+        text: `❌ Error: ${err.message}`,
       });
     } finally {
       setIsLoading(false);
@@ -108,6 +109,8 @@ function App() {
 
       <div {...getRootProps()} className={`dropzone ${isDragActive ? 'active' : ''}`}>
         <input {...getInputProps()} />
+        <span className="corner-tl"></span>
+        <span className="corner-br"></span>
         {isLoading ? (
           <p>Analyzing...</p>
         ) : isDragActive ? (
