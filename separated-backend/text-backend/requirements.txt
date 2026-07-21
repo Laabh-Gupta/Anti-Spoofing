@@ -3,6 +3,7 @@ uvicorn
 python-multipart
 huggingface_hub
 transformers==4.41.2
+accelerate
 packaging>=23.2
 numpy<2
 python-docx
