@@ -1,14 +1,20 @@
 import os
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
+import torch
+torch.set_num_threads(1)
+
+import gc
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
-import torch
 
 from extract_text import extract_text
 
 app = FastAPI(title="Text Anti-Spoofing API")
 
-origins = ["*"]  # tighten to your actual frontend URL once deployed
+origins = ["*"]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -21,10 +27,17 @@ HF_REPO_ID = "LaabhGupta/Text-Anti-Spoofing"
 device = "cpu"
 
 print("🔍 Downloading Text model from Hugging Face Hub...")
-model = AutoModelForSequenceClassification.from_pretrained(HF_REPO_ID)
+model = AutoModelForSequenceClassification.from_pretrained(
+    HF_REPO_ID,
+    low_cpu_mem_usage=True,   # avoids duplicating tensors during weight loading - cuts peak RAM
+    torch_dtype=torch.float32,
+)
 tokenizer = AutoTokenizer.from_pretrained(HF_REPO_ID)
 model.to(device)
 model.eval()
+
+gc.collect()  # force-release any temporary memory used during loading
+
 print("✔ Text model loaded successfully")
 
 MAX_LENGTH = 256
